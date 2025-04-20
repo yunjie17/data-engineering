@@ -1,0 +1,6 @@
+aws-cdk-lib~=2.159
+aws-cdk.aws-glue-alpha~=2.159
+aws-cdk.aws-lambda-python-alpha~=2.159
+aws-cdk.aws-scheduler-alpha~=2.159
+aws-cdk.aws-scheduler-targets-alpha~=2.159
+constructs~=10.3
