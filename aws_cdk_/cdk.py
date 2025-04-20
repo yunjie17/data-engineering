@@ -6,6 +6,7 @@ import aws_cdk as cdk
 import aws_cdk.aws_lambda_python_alpha as lambda_python
 import aws_cdk.aws_scheduler_alpha as schedule
 import aws_cdk.aws_scheduler_targets_alpha as schedule_targets
+import aws_cdk.aws_glue_alpha as glue
 from constructs import Construct
 
 
@@ -121,4 +122,58 @@ class schedule_lambda_funtion(Construct):
                 if input_ is not None
                 else None,
             ),
+        )
+
+
+@final
+class spark_glue_job(glue.PySparkEtlJob):
+    DEFAULT_MANAGED_POLICIES = (
+        cdk.aws_iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+        cdk.aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+            "service-role/AWSGlueServiceRole"
+        ),
+    )
+
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        STACK_PATH: Path,
+        *,
+        job_name: str | None = None,
+        description: str | None = None,
+        max_concurrency: int | None = None,
+        permissions: Sequence[cdk.aws_iam.PolicyStatement | cdk.aws_iam.IManagedPolicy]
+        | None = None,
+        default_arguments: Mapping[str, str] | None = None,
+        extra_jars: Sequence[glue.Code] | None = None,
+    ) -> None:
+        role = cdk.aws_iam.Role(
+            scope,
+            f"{id}-role",
+            assumed_by=cdk.aws_iam.ServicePrincipal("glue.amazonaws.com"),
+        )
+        for p in self.DEFAULT_MANAGED_POLICIES:
+            role.add_managed_policy(p)
+        if permissions is not None:
+            for p in permissions:
+                if isinstance(p, cdk.aws_iam.PolicyStatement):
+                    _ = role.add_to_policy(p)
+                else:
+                    role.add_managed_policy(p)
+
+        super().__init__(
+            scope,
+            id,
+            job_name=job_name,
+            description=description,
+            script=glue.Code.from_asset(
+                str((STACK_PATH / "glue" / id).with_suffix(".py"))
+            ),
+            glue_version=glue.GlueVersion.V5_0,
+            role=role,
+            extra_jars=extra_jars,
+            max_concurrent_runs=max_concurrency,
+            default_arguments=default_arguments,
+            enable_profiling_metrics=False,
         )
